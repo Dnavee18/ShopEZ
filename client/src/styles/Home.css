@@ -1,27 +1,73 @@
-.HomePage{
-
+/* General Page Styling */
+.HomePage {
     margin-top: 17vh;
-
-}
-
-.home-banner img{
-
-    height: 58vh;
-    width: 96%;
-    margin-left: 2%;
+  }
+  
+  /* Banner Section */
+  .home-banner {
+    position: relative;
+    width: 98%;
+    overflow: hidden; /* Hide overflowing images */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  /* Banner Images - Carousel Styling */
+  .banner-carousel {
+    display: flex;
+    transition: transform 0.2s ease-in-out; /* Smooth transition for the carousel */
+  }
+  
+  .banner-carousel img {
+    width: 100%; /* Ensure each image takes full width */
+    height: auto; /* Maintain aspect ratio */
     border-radius: 0.3rem;
-}
-
-.home-categories-container{
-
+    object-fit: cover; /* Ensures the image fills the space without distortion */
+    transition: opacity 0.5s ease; /* Smooth transition when changing images */
+  }
+  
+  /* Carousel Controls - Next and Previous Buttons */
+  .carousel-controls {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    justify-content: space-between;
+    width: 80%; /* Controls width */
+    z-index: 10; /* Ensures buttons are on top of images */
+  }
+  
+  .carousel-controls button {
+    background-color: rgba(0, 0, 0, 0.5);
+    color: white;
+    border: none;
+    padding: 10px;
+    font-size: 20px;
+    cursor: pointer;
+    border-radius: 50%;
+    transition: background-color 0.3s ease;
+  }
+  
+  .carousel-controls button:hover {
+    background-color: rgba(0, 0, 0, 0.8);
+  }
+  
+  /* Optional: Add smooth transitions for images when changing */
+  .home-banner img {
+    transition: opacity 0.5s ease;
+  }
+  
+  /* Category Cards */
+  .home-categories-container {
     display: flex;
     justify-content: space-evenly;
     margin-top: 10vh;
     margin-bottom: 15vh;
-}
-
-.home-category-card{
-
+  }
+  
+  .home-category-card {
     text-align: center;
     overflow: hidden;
     width: 200px;
@@ -29,27 +75,25 @@
     border-radius: 1.5rem;
     cursor: pointer;
     border: 1px solid #5e5b5b74;
-}
-.home-category-card:hover{
+    transition: box-shadow 0.3s ease; /* Add transition for hover effect */
+  }
+  
+  .home-category-card:hover {
     box-shadow: rgba(17, 17, 26, 0.1) 0px 4px 16px, rgba(17, 17, 26, 0.05) 0px 8px 32px;
-}
-
-.home-category-card img{
-
+  }
+  
+  .home-category-card img {
     width: 210px;
     height: 220px;
     border-radius: 1.5rem;
-    /* border: 1px solid #c6c4c4; */
-}
-
-
-.home-category-card h5{
-
+  }
+  
+  .home-category-card h5 {
     position: relative;
     top: -40px;
     background-color: #ead7d7b8;
     height: 50px;
     padding-top: 5px;
     color: #4c4747;
-}
-
+  }
+  

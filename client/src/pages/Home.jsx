@@ -1,76 +1,88 @@
-import React, { useEffect, useState } from 'react'
-import '../styles/Home.css'
-import HomeBanner from '../images/home-banner-2.png'
-import Products from '../components/Products'
-import Footer from '../components/Footer'
-import FlashSale from '../components/FlashSale'
-import { useNavigate } from 'react-router-dom'
-import axios from 'axios'
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+import '../styles/Home.css';
+import Products from '../components/Products';
+import Footer from '../components/Footer';
+import FlashSale from '../components/FlashSale';
+import { useNavigate } from 'react-router-dom';
 
 const Home = () => {
-
   const navigate = useNavigate();
+  const [banners, setBanners] = useState([]);
+  const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
 
-  const [bannerImg, setBannerImg] = useState();
+  // Fetch banner images from the backend
+  useEffect(() => {
+    fetchBanners();
+  }, []);
 
-  useEffect(()=>{
-    fetchBanner();
-  }, [])
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      setCurrentBannerIndex((prevIndex) => (prevIndex + 1) % banners.length);
+    }, 5000);
 
-  const fetchBanner = async() =>{
-    await axios.get('http://localhost:6001/fetch-banner').then(
-      (response)=>{
-        setBannerImg(response.data);
-      }
-    )
-  }
+    return () => clearInterval(intervalId); // Cleanup interval on unmount
+  }, [banners.length]);
+
+  const fetchBanners = async () => {
+    try {
+      const response = await axios.get('http://localhost:6001/fetch-banners');
+      setBanners(response.data);
+    } catch (error) {
+      console.error("Error fetching banners:", error.response ? error.response.data : error.message);
+    }
+  };
+
+  const nextBanner = () => {
+    setCurrentBannerIndex((prevIndex) => (prevIndex + 1) % banners.length);
+  };
+
+  const prevBanner = () => {
+    setCurrentBannerIndex((prevIndex) => (prevIndex - 1 + banners.length) % banners.length);
+  };
 
   return (
     <div className="HomePage">
+      {/* Banner Section - Carousel */}
       <div className="home-banner">
-        {bannerImg ?
-          <img src={bannerImg} alt="" />
-        :
-        ""}
+        {banners.length > 0 ? (
+          <div className="banner-carousel" style={{ transform: `translateX(-${currentBannerIndex * 100}%)` }}>
+            {banners.map((banner, index) => (
+              <img key={index} src={banner} alt={`Home Banner ${index + 1}`} />
+            ))}
+          </div>
+        ) : (
+          <div className="banner-carousel" style={{ transform: `translateX(-${currentBannerIndex * 100}%)` }}>
+            <img src="/images/home-banner-1.png" alt=" " />
+            <img src="/images/home-banner-2.png" alt="Default Banner 2" />
+          </div>
+        )}
       </div>
 
+      {/* Carousel Controls */}
+      {(banners.length > 1 || banners.length === 0) && (
+        <div className="carousel-controls">
+          <button onClick={prevBanner}>❮</button>
+          <button onClick={nextBanner}>❯</button>
+        </div>
+      )}
+
+      {/* FlashSale Section */}
+      <FlashSale />
+
+      {/* Category Cards */}
       <div className="home-categories-container">
-
-        <div className="home-category-card" onClick={()=>navigate('/category/Fashion')}>
-          <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRZQjXpWVVQhkT_A2n03XMo2KDV4yPSLBcoNA&usqp=CAU" alt="" />
-          <h5>Fashion</h5>
-        </div>
-
-        <div className="home-category-card" onClick={()=>navigate('/category/Electronics')}>
-          <img src="https://5.imimg.com/data5/ANDROID/Default/2023/1/SE/QC/NG/63182719/product-jpeg-500x500.jpg" alt="" />
-          <h5>Electronics</h5>
-        </div>
-
-        <div className="home-category-card" onClick={()=>navigate('/category/Mobiles')}>
-          <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ3jUW7v1WFJL9Ylax9a4vazyKXwG-ktSinI4Rd7qi7MkhMr79UlIyyrNkbiK0Cz5u6WYw&usqp=CAU" alt="" />
-          <h5>Mobiles</h5>
-        </div>
-
-        <div className="home-category-card" onClick={()=>navigate('/category/Groceries')}>
-          <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTXbpV_yQ_zCtZt_1kNebjvFqXvdDnLuuJPsQ&usqp=CAU" alt="" />
-          <h5>Groceries</h5>
-        </div>
-
-        <div className="home-category-card" onClick={()=>navigate('/category/Sports Equipment')}>
-          <img src="https://a.storyblok.com/f/112937/568x464/82f66c3a21/all_the_english-_football_terms_you_need_to_know_blog-hero-low.jpg/m/620x0/filters:quality(70)/" alt="" />
-          <h5>Sports Equipments</h5>
-        </div>
-
+        {/* Category Cards will be displayed here */}
       </div>
 
+      {/* Products Section */}
+      <div id="products-body"></div>
+      <Products category="all" />
 
-      <div id='products-body'></div>
-      <Products category = 'all'  />
-
-
+      {/* Footer */}
       <Footer />
     </div>
-  )
-}
+  );
+};
 
-export default Home
+export default Home;

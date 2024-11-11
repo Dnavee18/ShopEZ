@@ -1,150 +1,199 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const bodyParser = require('body-parser');
+import express from 'express';
+import bodyParser from 'body-parser';
+import mongoose from 'mongoose';
+import cors from 'cors';
+import bcrypt from 'bcrypt';
+import { Admin, Cart, Orders, Product, User } from './Schema.js';
 
-// Initialize app
 const app = express();
-app.use(bodyParser.json());
+
+app.use(express.json());
+app.use(bodyParser.json({ limit: "30mb", extended: true }));
+app.use(bodyParser.urlencoded({ limit: "30mb", extended: true }));
+app.use(cors());
+
+const PORT = process.env.PORT || 6001;
 
 // Connect to MongoDB
-mongoose.connect('mongodb://localhost:27017/ShopEZ', { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log('MongoDB connected'))
-  .catch(err => console.log('MongoDB connection error:', err));
-
-// Define schemas and models
-const Product = mongoose.model('Product', new mongoose.Schema({
-  title: String,
-  price: Number,
-  category: String,  // Example category (e.g., Electronics, Clothing)
-  mainImg: String,   // Main image URL
-}));
-
-const User = mongoose.model('User', new mongoose.Schema({
-  username: String,
-  email: String,
-  usertype: String,
-  password: String,
-  preferredCategories: [String],  // Preferred categories for recommendation
-  recentViews: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],  // List of viewed products (by product IDs)
-  cartItems: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],  // List of products added to cart (by product IDs)
-  orderHistory: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],  // List of products the user has ordered (by product IDs)
-}));
-
-// Middleware to log request details
-app.use((req, res, next) => {
-  console.log(`Request method: ${req.method}, Request URL: ${req.url}`);
-  next();
+mongoose.connect('mongodb://localhost:27017/shopEZ', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+}).then(() => {
+  console.log('Connected to MongoDB');
+}).catch((e) => {
+  console.error(`Error in db connection: ${e}`);
+  process.exit(1); // Exit process if unable to connect
 });
 
-// Endpoint to add a product to the user's recent views
-app.post('/add-recent-view', async (req, res) => {
-  const { userId, productId } = req.body;
+// Register route
+app.post('/register', async (req, res) => {
+  const { username, email, usertype, password } = req.body;
   try {
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: 'User not found' });
-    
-    // Prevent duplicate entries in recent views
-    if (!user.recentViews.includes(productId)) {
-      user.recentViews.push(productId);
-      await user.save();
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: 'User already exists' });
     }
-    
-    res.json({ message: 'Recent view added' });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = new User({ username, email, usertype, password: hashedPassword });
+    const userCreated = await newUser.save();
+    res.status(201).json(userCreated);
+
   } catch (error) {
-    console.error('Error adding recent view:', error);
-    res.status(500).json({ message: 'Error adding recent view' });
+    console.error(error);
+    res.status(500).json({ message: 'Server Error' });
   }
 });
 
-// Endpoint to add a product to the user's cart
-app.post('/add-to-cart', async (req, res) => {
-  const { userId, productId } = req.body;
+// Login route
+app.post('/login', async (req, res) => {
+  const { email, password } = req.body;
   try {
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: 'User not found' });
-    
-    // Prevent duplicate entries in the cart
-    if (!user.cartItems.includes(productId)) {
-      user.cartItems.push(productId);
-      await user.save();
-    }
-    
-    res.json({ message: 'Product added to cart' });
+    const user = await User.findOne({ email });
+    if (!user) return res.status(401).json({ message: 'Invalid email or password' });
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(401).json({ message: 'Invalid email or password' });
+
+    res.json(user);
   } catch (error) {
-    console.error('Error adding to cart:', error);
-    res.status(500).json({ message: 'Error adding product to cart' });
+    console.error(error);
+    res.status(500).json({ message: 'Server Error' });
   }
 });
 
-// Endpoint to place an order (add products to the order history)
-app.post('/place-order', async (req, res) => {
-  const { userId, productIds } = req.body;
+// Fetch banner
+app.get('/fetch-banner', async (req, res) => {
   try {
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: 'User not found' });
-    
-    // Add ordered products to user’s order history
-    user.orderHistory.push(...productIds);
-    await user.save();
-    
-    res.json({ message: 'Order placed successfully' });
-  } catch (error) {
-    console.error('Error placing order:', error);
-    res.status(500).json({ message: 'Error placing order' });
+    const admin = await Admin.findOne();
+    res.json(admin ? admin.banner : null);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error occurred' });
   }
 });
 
-// Endpoint to fetch recommendations for a user
-app.get('/recommendations/:userId', async (req, res) => {
-  const { userId } = req.params;
-  
+// Fetch users
+app.get('/fetch-users', async (req, res) => {
   try {
-    const user = await User.findById(userId).populate('recentViews cartItems orderHistory');
-    if (!user) return res.status(404).json({ message: 'User not found' });
-    
-    const criteria = {};
-    
-    // Use preferred categories for recommendations
-    if (user.preferredCategories && user.preferredCategories.length > 0) {
-      criteria.category = { $in: user.preferredCategories };
+    const users = await User.find();
+    res.json(users);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error occurred' });
+  }
+});
+
+// Fetch individual product details
+app.get('/fetch-product-details/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const product = await Product.findById(id);
+    if (!product) return res.status(404).json({ message: "Product not found" });
+    res.json(product);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error occurred" });
+  }
+});
+
+// Fetch products
+app.get('/fetch-products', async (req, res) => {
+  try {
+    const products = await Product.find();
+    res.json(products);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error occurred' });
+  }
+});
+
+// Fetch orders
+app.get('/fetch-orders', async (req, res) => {
+  try {
+    const orders = await Orders.find();
+    res.json(orders);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error occurred' });
+  }
+});
+
+// Fetch categories
+app.get('/fetch-categories', async (req, res) => {
+  try {
+    let admin = await Admin.findOne();
+    if (!admin) {
+      admin = new Admin({ banner: "", categories: [] });
+      await admin.save();
     }
-    
-    // Use recently viewed products for recommendations
-    if (user.recentViews && user.recentViews.length > 0) {
-      criteria._id = { $in: user.recentViews.map(view => view._id) };
-    }
-    
-    // Use cart items for recommendations
-    if (user.cartItems && user.cartItems.length > 0) {
-      if (!criteria.category) {
-        criteria.category = { $in: user.cartItems.map(item => item.category) };
+    res.json(admin.categories);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error occurred" });
+  }
+});
+
+// Add new product
+app.post('/add-new-product', async (req, res) => {
+  const { productName, productDescription, productMainImg, productCarousel, productSizes, productGender, productCategory, productNewCategory, productPrice, productDiscount } = req.body;
+  try {
+    let category = productCategory;
+    if (productCategory === 'new category') {
+      const admin = await Admin.findOne();
+      if (!admin.categories.includes(productNewCategory)) {
+        admin.categories.push(productNewCategory);
+        await admin.save();
       }
+      category = productNewCategory;
     }
-    
-    // Use ordered products for recommendations
-    if (user.orderHistory && user.orderHistory.length > 0) {
-      if (!criteria.category) {
-        criteria.category = { $in: user.orderHistory.map(order => order.category) };
-      }
-    }
-    
-    // Find products based on the combined criteria
-    const recommendedProducts = await Product.find(criteria).limit(5);  // Adjust limit as needed
-    
-    res.json(recommendedProducts);
-  } catch (error) {
-    console.error('Error fetching recommendations:', error);
-    res.status(500).json({ message: 'Error fetching recommendations' });
+
+    const newProduct = new Product({
+      title: productName, description: productDescription, mainImg: productMainImg,
+      carousel: productCarousel, category, sizes: productSizes,
+      gender: productGender, price: productPrice, discount: productDiscount
+    });
+    await newProduct.save();
+
+    res.json({ message: "Product added!" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error occurred" });
   }
 });
 
-// Default route to test the server
-app.get('/', (req, res) => {
-  res.send('E-commerce Backend is running!');
+// Update banner
+app.post('/update-banner', async (req, res) => {
+  const { banner } = req.body;
+  try {
+    let admin = await Admin.findOne();
+    if (!admin) {
+      admin = new Admin({ banner, categories: [] });
+    } else {
+      admin.banner = banner;
+    }
+    await admin.save();
+    res.json({ message: "Banner updated" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error occurred" });
+  }
+});
+
+// Buy product
+app.post('/buy-product', async (req, res) => {
+  const { userId, name, email, mobile, address, pincode, title, description, mainImg, size, quantity, price, discount, paymentMethod, orderDate } = req.body;
+  try {
+    const newOrder = new Orders({ userId, name, email, mobile, address, pincode, title, description, mainImg, size, quantity, price, discount, paymentMethod, orderDate });
+    await newOrder.save();
+    res.json({ message: 'Order placed' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error occurred" });
+  }
 });
 
 // Start the server
-const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
